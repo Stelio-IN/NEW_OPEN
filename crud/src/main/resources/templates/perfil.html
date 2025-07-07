@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Meu Perfil</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+  <!-- Cabeçalho -->
+  <header class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-blue-600">Meu Perfil</h1>
+    <a href="/notas" class="text-blue-600 hover:underline">Voltar para tarefas</a>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg mt-10 p-8">
+
+    <!-- Mensagens -->
+    <div th:if="${success}" class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded mb-4" th:text="${success}"></div>
+    <div th:if="${error}" class="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded mb-4" th:text="${error}"></div>
+
+    <!-- Formulário -->
+    <form th:action="@{/atualizar-perfil}" method="post" enctype="multipart/form-data" th:object="${user}" class="space-y-6">
+
+      <!-- Fotos lado a lado -->
+      <div class="flex items-start justify-center gap-10">
+        <!-- Imagem atual -->
+        <div class="flex flex-col items-center">
+          <h2 class="text-sm mb-2 text-gray-500">Foto Atual</h2>
+          <div class="w-32 h-32 rounded-full overflow-hidden border-2 border-blue-500">
+            <img th:src="${user.fotoPerfil != null} ? @{/foto-perfil/{id}(id=${user.id})} : ''" 
+                 alt="Foto de Perfil" 
+                 class="w-full h-full object-cover" />
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="flex flex-col items-center">
+          <h2 class="text-sm mb-2 text-gray-500">Pré-visualização</h2>
+          <div class="w-32 h-32 rounded-full overflow-hidden border-2 border-dashed border-gray-400 bg-gray-50">
+            <img id="previewImagem" class="w-full h-full object-cover" />
+          </div>
+
+          <!-- Input para alterar -->
+          <div class="mt-3">
+            <label for="fotoPerfil"
+                   class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">
+              Alterar Foto
+            </label>
+            <input type="file" id="fotoPerfil" th:field="*{fotoPerfilFile}" accept="image/*"
+                   class="hidden" onchange="mostrarPreview(this)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Campos -->
+      <div>
+        <label for="nome" class="block text-sm font-medium text-gray-700">Nome</label>
+        <input type="text" id="nome" th:field="*{nome}" required
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+        <input type="email" id="email" th:field="*{email}" required
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      <div>
+        <label for="celular" class="block text-sm font-medium text-gray-700">Celular</label>
+        <input type="text" id="celular" th:field="*{celular}"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      <div>
+        <label for="morada" class="block text-sm font-medium text-gray-700">Morada</label>
+        <input type="text" id="morada" th:field="*{morada}"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      <!-- Botões -->
+      <div class="flex justify-between pt-6">
+        <button type="button" onclick="window.location.href='/notas'"
+                class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-5 py-2 rounded transition">Cancelar</button>
+        <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded transition">Salvar Alterações</button>
+      </div>
+    </form>
+  </main>
+
+  <!-- Script de preview -->
+  <script>
+    function mostrarPreview(input) {
+      const preview = document.getElementById('previewImagem');
+      const file = input.files[0];
+
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  </script>
+</body>
+</html>
