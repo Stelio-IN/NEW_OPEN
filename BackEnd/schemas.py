@@ -4,7 +4,7 @@ from typing import Optional
 
 class UserBase(BaseModel):
     username: str
-    phone: constr(min_length=10, max_length=15)  # Ex: +5511999999999
+    phone: constr(min_length=10, max_length=15)
 
 class UserCreate(UserBase):
     password: str
@@ -31,6 +31,8 @@ class MessageOut(BaseModel):
     receiver_username: str
     sender_phone: Optional[str] = None
     receiver_phone: Optional[str] = None
+    is_fraudulent: bool = False
+    fraud_probability: float = 0.0
 
     class Config:
-        orm_mode = True
+        from_attributes = True

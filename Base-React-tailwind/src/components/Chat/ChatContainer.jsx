@@ -11,11 +11,13 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showNewChat, setShowNewChat] = useState(false);
   const [showContactDetails, setShowContactDetails] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const [inboxRes, sentRes] = await Promise.all([
           getMessages(token),
           getSentMessages(token),
@@ -84,6 +86,10 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
+        setError('Falha ao carregar mensagens. Tente novamente.');
+        if (error.response?.status === 401) {
+          onLogout();
+        }
       } finally {
         setIsLoading(false);
       }
@@ -92,10 +98,11 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
     if (currentUser?.id) {
       fetchMessages();
     }
-  }, [token, currentUser]);
+  }, [token, currentUser, onLogout]);
 
   const handleStartNewChat = async (phone) => {
     try {
+      setError(null);
       const normalizedPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
       const user = await getUserByContact(token, normalizedPhone);
       
@@ -113,7 +120,8 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
           username: user.username,
           phone: user.phone,
           messages: [],
-          lastMessage: new Date().toISOString()
+          lastMessage: new Date().toISOString(),
+          unread: false
         };
         
         setConversations(prev => [newConversation, ...prev]);
@@ -122,7 +130,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
       
       setShowNewChat(false);
     } catch (error) {
-      alert(error.message);
+      setError(error.message);
     }
   };
 
@@ -130,6 +138,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
     if (!activeChat || !content.trim()) return;
     
     try {
+      setError(null);
       if (!activeChat.phone) {
         throw new Error('Número de telefone do destinatário não disponível');
       }
@@ -226,7 +235,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
       
       setConversations(sortedConversations);
     } catch (error) {
-      alert(error.message);
+      setError(error.message);
     }
   };
 
@@ -243,9 +252,15 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
         isLoading={isLoading}
         onNewChat={() => setShowNewChat(true)}
         currentUser={currentUser}
+        onLogout={onLogout}
       />
       
       <div className="flex-1 flex flex-col">
+        {error && (
+          <div className="p-4 bg-red-100 text-red-700">
+            {error}
+          </div>
+        )}
         {showNewChat ? (
           <NewChatForm 
             onStartChat={handleStartNewChat}

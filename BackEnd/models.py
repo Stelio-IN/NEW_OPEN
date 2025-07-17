@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, Boolean, Float
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -20,6 +20,9 @@ class Message(Base):
     receiver_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    read = Column(Boolean, default=False)
+    is_fraudulent = Column(Boolean, default=False)
+    fraud_probability = Column(Float, default=0.0)
 
     sender = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")
     receiver = relationship("User", foreign_keys=[receiver_id], back_populates="received_messages")
