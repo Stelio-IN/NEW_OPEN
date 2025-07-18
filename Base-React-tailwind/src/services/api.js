@@ -1,19 +1,5 @@
-const API_URL = 'http://localhost:8000/api';
-
-
-export const getUserProfile = async (token) => {
-  const response = await fetch(`${API_URL}/users/me`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-  
-  if (!response.ok) throw new Error('Erro ao obter perfil');
-  
-  return response.json();
-};
-
 export const login = async (data) => {
+  console.log('Sending login request:', data);
   const response = await fetch('http://localhost:8000/api/users/login', {
     method: 'POST',
     headers: {
@@ -25,10 +11,13 @@ export const login = async (data) => {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Erro ao fazer login');
   }
-  return await response.json();
+  const result = await response.json();
+  console.log('Login response:', result);
+  return result;
 };
 
 export const register = async (data) => {
+  console.log('Sending register request:', data);
   const response = await fetch('http://localhost:8000/api/users/register', {
     method: 'POST',
     headers: {
@@ -40,10 +29,13 @@ export const register = async (data) => {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Erro ao registrar');
   }
-  return await response.json();
+  const result = await response.json();
+  console.log('Register response:', result);
+  return result;
 };
 
 export const getCurrentUser = async (token) => {
+  console.log('Fetching current user with token:', token.slice(0, 10) + '...');
   const response = await fetch('http://localhost:8000/api/users/me', {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -51,12 +43,16 @@ export const getCurrentUser = async (token) => {
   });
   if (!response.ok) {
     const errorData = await response.json();
+    console.error('Get current user error:', errorData);
     throw new Error(errorData.detail || 'Erro ao buscar usuário');
   }
-  return await response.json();
+  const result = await response.json();
+  console.log('Get current user response:', result);
+  return result;
 };
 
 export const getMessages = async (token) => {
+  console.log('Fetching inbox with token:', token.slice(0, 10) + '...');
   const response = await fetch('http://localhost:8000/api/messages/inbox', {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -70,6 +66,7 @@ export const getMessages = async (token) => {
 };
 
 export const getSentMessages = async (token) => {
+  console.log('Fetching sent messages with token:', token.slice(0, 10) + '...');
   const response = await fetch('http://localhost:8000/api/messages/sent', {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -83,6 +80,7 @@ export const getSentMessages = async (token) => {
 };
 
 export const getUserByContact = async (token, contact) => {
+  console.log('Fetching user by contact:', contact);
   const response = await fetch(`http://localhost:8000/api/users/find?contact=${encodeURIComponent(contact)}`, {
     headers: {
       'Authorization': `Bearer ${token}`

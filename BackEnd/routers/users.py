@@ -46,7 +46,7 @@ async def login(data: UserLogin, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
         token = create_access_token({"user_id": user.id, "sub": user.username})
-        logger.info(f"User logged in successfully: {user.username}")
+        logger.info(f"User logged in successfully: {user.username}, token: {token[:10]}...")
         return {
             "access_token": token,
             "token_type": "bearer",
@@ -80,13 +80,13 @@ async def find_user_by_contact(
 
 @router.get("/me")
 async def get_current_user_profile(
-    current_user=Depends(get_current_user),
+    user_id: int = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
-        user = db.query(User).filter_by(id=current_user).first()
+        user = db.query(User).filter_by(id=user_id).first()
         if not user:
-            logger.error(f"Current user not found: {current_user}")
+            logger.error(f"Current user not found: {user_id}")
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
         logger.info(f"Profile fetched for user: {user.username}")

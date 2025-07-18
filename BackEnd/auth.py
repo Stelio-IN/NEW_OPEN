@@ -1,12 +1,15 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jwt import PyJWTError, decode
 from sqlalchemy.orm import Session
-from models import User
 from database import SessionLocal
-from utils.security import SECRET_KEY, ALGORITHM
+import logging
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 
 def get_db():
     db = SessionLocal()
@@ -15,24 +18,22 @@ def get_db():
     finally:
         db.close()
 
-async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        db: Session = Depends(get_db)
-):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise credentials_exception
-    return user
+        if not token:
+            logger.error("No token provided in Authorization header")
+            raise HTTPException(status_code=401, detail="Token não fornecido")
+        logger.info(f"Decoding token: {token[:10]}...")  # Log partial token for debugging
+        payload = decode(token, "secret_key", algorithms=["HS256"])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            logger.error("Token missing user_id")
+            raise HTTPException(status_code=401, detail="Token inválido: user_id ausente")
+        logger.info(f"Token valid, user_id: {user_id}")
+        return user_id
+    except PyJWTError as e:
+        logger.error(f"JWT decode error: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Erro ao validar token: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_current_user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

@@ -12,6 +12,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
   const [showNewChat, setShowNewChat] = useState(false);
   const [showContactDetails, setShowContactDetails] = useState(false);
   const [error, setError] = useState(null);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -129,6 +130,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
       }
       
       setShowNewChat(false);
+      setShowSidebar(false);
     } catch (error) {
       setError(error.message);
     }
@@ -243,24 +245,52 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
     setShowContactDetails(!showContactDetails);
   };
 
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100">
-      <ChatSidebar 
-        conversations={conversations}
-        activeChat={activeChat}
-        setActiveChat={setActiveChat}
-        isLoading={isLoading}
-        onNewChat={() => setShowNewChat(true)}
-        currentUser={currentUser}
-        onLogout={onLogout}
-      />
+    <div className="flex h-screen bg-gray-50">
+      {/* Mobile sidebar toggle */}
+      <button 
+        onClick={toggleSidebar}
+        className="md:hidden fixed bottom-4 right-4 z-50 bg-blue-500 text-white p-3 rounded-full shadow-lg"
+      >
+        {showSidebar ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        )}
+      </button>
+
+      {/* Sidebar */}
+      <div className={`${showSidebar ? 'block' : 'hidden'} md:block w-full md:w-80 bg-white border-r flex flex-col fixed md:relative inset-0 z-40 md:z-auto`}>
+        <ChatSidebar 
+          conversations={conversations}
+          activeChat={activeChat}
+          setActiveChat={(chat) => {
+            setActiveChat(chat);
+            setShowSidebar(false);
+          }}
+          isLoading={isLoading}
+          onNewChat={() => setShowNewChat(true)}
+          currentUser={currentUser}
+          onLogout={onLogout}
+        />
+      </div>
       
-      <div className="flex-1 flex flex-col">
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col md:ml-80">
         {error && (
-          <div className="p-4 bg-red-100 text-red-700">
+          <div className="p-3 bg-red-100 text-red-700 text-center">
             {error}
           </div>
         )}
+        
         {showNewChat ? (
           <NewChatForm 
             onStartChat={handleStartNewChat}
@@ -268,24 +298,54 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
           />
         ) : activeChat ? (
           <>
-            <div className="p-4 border-b bg-white flex items-center justify-between">
+            <div className="p-4 border-b bg-white flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-3">
+                <button 
+                  onClick={toggleSidebar}
+                  className="md:hidden mr-2 text-gray-500"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold mr-3">
                   {activeChat.username.charAt(0).toUpperCase()}
                 </div>
-                <h3 className="font-semibold">{activeChat.username}</h3>
+                <div>
+                  <h3 className="font-semibold">{activeChat.username}</h3>
+                  <p className="text-xs text-gray-500">
+                    {activeChat.messages.length > 0 ? (
+                      new Date(activeChat.lastMessage).toLocaleString()
+                    ) : 'Nova conversa'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={handleViewContact}
-                className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+                className="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center"
               >
-                {showContactDetails ? 'Ocultar Contato' : 'Ver Contato'}
+                {showContactDetails ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    Ocultar
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Detalhes
+                  </>
+                )}
               </button>
             </div>
+            
             {showContactDetails && (
               <div className="p-4 bg-gray-50 border-b">
                 <div className="flex items-center">
-                  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold mr-4">
                     {activeChat.username.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -295,17 +355,33 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
                 </div>
               </div>
             )}
+            
             <MessageList 
               messages={activeChat.messages}
               currentUserId={currentUser.id}
             />
+            
             <SendMessageForm 
               onSend={handleSendMessage}
             />
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-500">Selecione uma conversa ou inicie uma nova</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="max-w-md">
+              <div className="w-24 h-24 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">Selecione uma conversa</h3>
+              <p className="text-gray-500 mb-4">Escolha um chat existente ou inicie uma nova conversa</p>
+              <button
+                onClick={() => setShowNewChat(true)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-colors"
+              >
+                Nova Conversa
+              </button>
+            </div>
           </div>
         )}
       </div>

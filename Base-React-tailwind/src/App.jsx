@@ -10,16 +10,20 @@ const App = () => {
 
   useEffect(() => {
     if (token) {
+      console.log('Fetching user with token:', token.slice(0, 10) + '...');
       const fetchUser = async () => {
         try {
           setError(null);
           const user = await getCurrentUser(token);
+          console.log('User fetched:', user);
           setCurrentUser(user);
           localStorage.setItem('currentUser', JSON.stringify(user));
         } catch (error) {
-          console.error('Error fetching user:', error);
-          setError('Falha ao carregar perfil do usuário. Fazendo logout.');
-          handleLogout();
+          console.error('Error fetching user:', error.message);
+          setError('Falha ao carregar perfil do usuário. Tente fazer login novamente.');
+          setToken(null);
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
         }
       };
       fetchUser();
@@ -27,7 +31,7 @@ const App = () => {
   }, [token]);
 
   const handleLogin = (newToken, user) => {
-    console.log('Logging in:', { newToken, user });
+    console.log('Logging in:', { newToken: newToken.slice(0, 10) + '...', user });
     setToken(newToken);
     setCurrentUser(user);
     localStorage.setItem('token', newToken);

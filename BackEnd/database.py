@@ -20,7 +20,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Configuração do banco de dados (substitua pelas suas configurações)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./chat_app.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./chat_app1.db"
 # Para MySQL/MariaDB:
 # SQLALCHEMY_DATABASE_URL = "mysql+pymysql://user:password@localhost/dbname"
 

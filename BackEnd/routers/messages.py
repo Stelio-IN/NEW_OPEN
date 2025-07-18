@@ -26,7 +26,7 @@ def normalize_phone(phone: str) -> str:
 async def send_message(
         msg: MessageCreate,
         db: Session = Depends(get_db),
-        current_user=Depends(get_current_user)
+        user_id: int = Depends(get_current_user)
 ):
     try:
         normalized_phone = normalize_phone(msg.receiver_phone)
@@ -38,15 +38,20 @@ async def send_message(
         if not receiver:
             logger.error(f"User not found for phone: {normalized_phone}")
             raise HTTPException(status_code=404, detail="Destinatário não encontrado")
-        if receiver.id == current_user.id:
+        if receiver.id == user_id:
             logger.error("Attempt to send message to self")
             raise HTTPException(status_code=400, detail="Não pode enviar mensagem para si mesmo")
+
+        sender = db.query(User).filter_by(id=user_id).first()
+        if not sender:
+            logger.error(f"Sender not found: {user_id}")
+            raise HTTPException(status_code=404, detail="Remetente não encontrado")
 
         # Check for fraud
         fraud_result = await detect_fraud(FraudDetectionRequest(content=msg.content))
 
         message = Message(
-            sender_id=current_user.id,
+            sender_id=user_id,
             receiver_id=receiver.id,
             content=msg.content,
             read=False,
@@ -57,9 +62,9 @@ async def send_message(
         db.commit()
         db.refresh(message)
 
-        message.sender_username = current_user.username
+        message.sender_username = sender.username
         message.receiver_username = receiver.username
-        message.sender_phone = current_user.phone
+        message.sender_phone = sender.phone
         message.receiver_phone = receiver.phone
 
         logger.info(f"Message sent successfully: {message.id}")
@@ -69,40 +74,42 @@ async def send_message(
         raise HTTPException(status_code=500, detail=f"Erro ao enviar mensagem: {str(e)}")
 
 @router.get("/inbox", response_model=list[MessageOut])
-async def get_inbox(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+async def get_inbox(db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
     try:
-        messages = db.query(Message).filter(Message.receiver_id == current_user.id).all()
+        messages = db.query(Message).filter(Message.receiver_id == user_id).all()
 
         for msg in messages:
             sender = db.query(User).filter_by(id=msg.sender_id).first()
             msg.sender_username = sender.username
             msg.sender_phone = sender.phone
-            msg.receiver_username = current_user.username
-            msg.receiver_phone = current_user.phone
+            receiver = db.query(User).filter_by(id=user_id).first()
+            msg.receiver_username = receiver.username
+            msg.receiver_phone = receiver.phone
             # Mark as read
             if not msg.read:
                 msg.read = True
                 db.commit()
 
-        logger.info(f"Inbox fetched for user {current_user.id}")
+        logger.info(f"Inbox fetched for user {user_id}")
         return messages
     except Exception as e:
         logger.error(f"Error fetching inbox: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar inbox: {str(e)}")
 
 @router.get("/sent", response_model=list[MessageOut])
-async def get_sent_messages(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+async def get_sent_messages(db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
     try:
-        messages = db.query(Message).filter(Message.sender_id == current_user.id).all()
+        messages = db.query(Message).filter(Message.sender_id == user_id).all()
 
         for msg in messages:
             receiver = db.query(User).filter_by(id=msg.receiver_id).first()
-            msg.sender_username = current_user.username
-            msg.sender_phone = current_user.phone
+            sender = db.query(User).filter_by(id=user_id).first()
+            msg.sender_username = sender.username
+            msg.sender_phone = sender.phone
             msg.receiver_username = receiver.username
             msg.receiver_phone = receiver.phone
 
-        logger.info(f"Sent messages fetched for user {current_user.id}")
+        logger.info(f"Sent messages fetched for user {user_id}")
         return messages
     except Exception as e:
         logger.error(f"Error fetching sent messages: {str(e)}")
