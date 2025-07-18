@@ -284,7 +284,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
       </div>
       
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col md:ml-80">
+      <div className={`flex-1 flex flex-col ${!showSidebar ? 'md:ml-0' : ''}`}>
         {error && (
           <div className="p-3 bg-red-100 text-red-700 text-center">
             {error}
