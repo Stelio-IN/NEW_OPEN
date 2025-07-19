@@ -3,188 +3,44 @@ import ChatSidebar from './ChatSidebar';
 import MessageList from './MessageList';
 import SendMessageForm from './SendMessageForm';
 import NewChatForm from './NewChatForm';
-import { getMessages, getSentMessages, getUserByContact } from '../../services/api';
+import { getMessages, getSentMessages, getUserByContact, sendMessage } from '../../services/api';
 
 const ChatContainer = ({ token, currentUser, onLogout }) => {
   const [activeChat, setActiveChat] = useState(null);
   const [conversations, setConversations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [showContactDetails, setShowContactDetails] = useState(false);
   const [error, setError] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [lastMessageIds, setLastMessageIds] = useState(new Set());
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const [inboxRes, sentRes] = await Promise.all([
-          getMessages(token),
-          getSentMessages(token),
-        ]);
-
-        const allMessages = [...inboxRes, ...sentRes].sort((a, b) => 
-          new Date(a.timestamp) - new Date(b.timestamp)
-        );
-        
-        const conversationsMap = allMessages.reduce((acc, message) => {
-          const otherUserId = 
-            message.sender_id === currentUser.id 
-              ? message.receiver_id 
-              : message.sender_id;
-              
-          const otherUser = 
-            message.sender_id === currentUser.id
-              ? { 
-                  id: message.receiver_id, 
-                  username: message.receiver_username,
-                  phone: message.receiver_phone 
-                }
-              : { 
-                  id: message.sender_id, 
-                  username: message.sender_username,
-                  phone: message.sender_phone 
-                };
-          
-          if (!acc[otherUserId]) {
-            acc[otherUserId] = {
-              userId: otherUserId,
-              username: otherUser.username,
-              phone: otherUser.phone,
-              messages: [],
-              lastMessage: message.timestamp,
-              unread: message.receiver_id === currentUser.id && !message.read
-            };
-          }
-          
-          acc[otherUserId].messages.push({
-            ...message,
-            isSender: message.sender_id === currentUser.id
-          });
-          
-          if (new Date(message.timestamp) > new Date(acc[otherUserId].lastMessage)) {
-            acc[otherUserId].lastMessage = message.timestamp;
-          }
-          
-          return acc;
-        }, {});
-        
-        const sortedConversations = Object.values(conversationsMap).sort((a, b) => 
-          new Date(b.lastMessage) - new Date(a.lastMessage)
-        );
-        
-        sortedConversations.forEach(conversation => {
-          conversation.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        });
-        
-        setConversations(sortedConversations);
-        if (activeChat) {
-          const updatedActiveChat = sortedConversations.find(c => c.userId === activeChat.userId);
-          if (updatedActiveChat) {
-            setActiveChat(updatedActiveChat);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        setError('Falha ao carregar mensagens. Tente novamente.');
-        if (error.response?.status === 401) {
-          onLogout();
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (currentUser?.id) {
-      fetchMessages();
-    }
-  }, [token, currentUser, onLogout]);
-
-  const handleStartNewChat = async (phone) => {
+  const fetchMessages = async (isInitial = false) => {
     try {
-      setError(null);
-      const normalizedPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
-      const user = await getUserByContact(token, normalizedPhone);
-      
-      if (!user) {
-        throw new Error('Usuário não encontrado');
-      }
-
-      const existingConversation = conversations.find(c => c.userId === user.id);
-      
-      if (existingConversation) {
-        setActiveChat(existingConversation);
+      if (isInitial) {
+        setIsInitialLoading(true);
       } else {
-        const newConversation = {
-          userId: user.id,
-          username: user.username,
-          phone: user.phone,
-          messages: [],
-          lastMessage: new Date().toISOString(),
-          unread: false
-        };
-        
-        setConversations(prev => [newConversation, ...prev]);
-        setActiveChat(newConversation);
+        setIsPolling(true);
       }
-      
-      setShowNewChat(false);
-      setShowSidebar(false);
-    } catch (error) {
-      setError(error.message);
-    }
-  };
-
-  const handleSendMessage = async (content) => {
-    if (!activeChat || !content.trim()) return;
-    
-    try {
       setError(null);
-      if (!activeChat.phone) {
-        throw new Error('Número de telefone do destinatário não disponível');
-      }
-
-      const response = await fetch('http://localhost:8000/api/messages/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          receiver_phone: activeChat.phone,
-          content,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Erro ao enviar mensagem');
-      }
-
-      const newMessage = await response.json();
-      
-      setActiveChat(prev => ({
-        ...prev,
-        messages: [
-          ...prev.messages,
-          {
-            ...newMessage,
-            isSender: true
-          }
-        ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
-        lastMessage: newMessage.timestamp
-      }));
-
       const [inboxRes, sentRes] = await Promise.all([
         getMessages(token),
         getSentMessages(token),
       ]);
-      
+
       const allMessages = [...inboxRes, ...sentRes].sort((a, b) => 
         new Date(a.timestamp) - new Date(b.timestamp)
       );
-      
+
+      // Check for new messages by comparing IDs
+      const currentMessageIds = new Set(allMessages.map(msg => msg.id));
+      if (currentMessageIds.size === lastMessageIds.size && 
+          [...currentMessageIds].every(id => lastMessageIds.has(id))) {
+        return; // No new messages, skip state update
+      }
+      setLastMessageIds(currentMessageIds);
+
       const conversationsMap = allMessages.reduce((acc, message) => {
         const otherUserId = 
           message.sender_id === currentUser.id 
@@ -236,8 +92,107 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
       });
       
       setConversations(sortedConversations);
+
+      // Update activeChat if it exists
+      if (activeChat) {
+        const updatedActiveChat = sortedConversations.find(c => c.userId === activeChat.userId);
+        if (updatedActiveChat) {
+          setActiveChat({
+            ...activeChat,
+            messages: updatedActiveChat.messages,
+            lastMessage: updatedActiveChat.lastMessage,
+            unread: updatedActiveChat.unread
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      setError('Falha ao carregar mensagens. Tente novamente.');
+      if (error.message.includes('401')) {
+        onLogout();
+      }
+    } finally {
+      if (isInitial) {
+        setIsInitialLoading(false);
+      }
+      setIsPolling(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchMessages(true); // Initial fetch
+      const intervalId = setInterval(() => fetchMessages(false), 5000); // Poll every 5 seconds
+      return () => clearInterval(intervalId); // Cleanup on unmount
+    }
+  }, [token, currentUser, onLogout]);
+
+  const handleStartNewChat = async (phone) => {
+    try {
+      setError(null);
+      const normalizedPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
+      const user = await getUserByContact(token, normalizedPhone);
+      
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      const existingConversation = conversations.find(c => c.userId === user.id);
+      
+      if (existingConversation) {
+        setActiveChat(existingConversation);
+      } else {
+        const newConversation = {
+          userId: user.id,
+          username: user.username,
+          phone: user.phone,
+          messages: [],
+          lastMessage: new Date().toISOString(),
+          unread: false
+        };
+        
+        setConversations(prev => [newConversation, ...prev]);
+        setActiveChat(newConversation);
+      }
+      
+      setShowNewChat(false);
+      setShowSidebar(false);
     } catch (error) {
       setError(error.message);
+    }
+  };
+
+  const handleSendMessage = async (content) => {
+    if (!activeChat || !content.trim()) return;
+    
+    try {
+      setError(null);
+      if (!activeChat.phone) {
+        throw new Error('Número de telefone do destinatário não disponível');
+      }
+
+      const newMessage = await sendMessage(token, {
+        receiver_phone: activeChat.phone,
+        content,
+      });
+      
+      setActiveChat(prev => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            ...newMessage,
+            isSender: true
+          }
+        ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+        lastMessage: newMessage.timestamp
+      }));
+
+      // Fetch updated messages to sync conversations
+      await fetchMessages(false);
+    } catch (error) {
+      setError(error.message);
+      console.error('Error sending message:', error);
     }
   };
 
@@ -276,7 +231,7 @@ const ChatContainer = ({ token, currentUser, onLogout }) => {
             setActiveChat(chat);
             setShowSidebar(false);
           }}
-          isLoading={isLoading}
+          isLoading={isInitialLoading}
           onNewChat={() => setShowNewChat(true)}
           currentUser={currentUser}
           onLogout={onLogout}

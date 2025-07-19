@@ -43,7 +43,6 @@ export const getCurrentUser = async (token) => {
   });
   if (!response.ok) {
     const errorData = await response.json();
-    console.error('Get current user error:', errorData);
     throw new Error(errorData.detail || 'Erro ao buscar usuário');
   }
   const result = await response.json();
@@ -91,4 +90,23 @@ export const getUserByContact = async (token, contact) => {
     throw new Error(errorData.detail || 'Usuário não encontrado');
   }
   return await response.json();
+};
+
+export const sendMessage = async (token, data) => {
+  console.log('Sending message:', data);
+  const response = await fetch('http://localhost:8000/api/messages/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Erro ao enviar mensagem');
+  }
+  const result = await response.json();
+  console.log('Send message response:', result);
+  return result;
 };
